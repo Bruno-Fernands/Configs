@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# MPD album selector with walker dmenu mode
+# Play now = add album to queue and play, without clearing queue
+
+set -e
+
+# Check if mpd is running
+if ! mpc status > /dev/null 2>&1; then
+    echo "Error: MPD is not running or not accessible"
+    exit 1
+fi
+
+# Get album list with artist names (fixed xargs issue)
+album_list=$(mpc list album | while read album; do
+    # Safely get artist without xargs quote issues
+    artist=$(mpc find album "$album" | head -1)
+    if [[ -n "$artist" ]]; then
+        artist=$(mpc --format "%artist%" find filename "$artist" | head -1)
+    fi
+    artist=${artist:-Unknown Artist}
+    echo "$album - $artist"
+done)
+
+# Get album selection using walker in dmenu mode
+selected_album=$(echo "$album_list" | walker -d -p "Select album:" | cut -d'-' -f1 | sed 's/ *$//')
+
+if [[ -z "$selected_album" ]]; then
+    echo "No album selected"
+    exit 0
+fi
+
+# Use walker in dmenu mode to select action
+action=$(echo -e "Play now\nAdd to queue" | walker -d -p "Action for: ${selected_album:0:30}...")
+
+case "$action" in
+    "Play now")
+        echo "Adding album to queue and playing: $selected_album"
+        # Add album to queue (don't clear!)
+        mpc findadd album "$selected_album"
+        # Find the position where this album starts in the queue
+        # Get the current queue length before adding
+        current_length=$(mpc playlist | wc -l)
+        # The album songs are added starting from position (current_length + 1)
+        # Play the first song of the newly added album
+        mpc play $((current_length + 1))
+        ;;
+    "Add to queue")
+        echo "Adding album to queue: $selected_album"
+        mpc findadd album "$selected_album"
+        ;;
+    *)
+        echo "No action selected"
+        ;;
+esac

@@ -1,0 +1,11 @@
+#!/bin/bash                                       
+                                                  
+TERM_CMD="kitty"                                  
+                                                  
+$TERM_CMD --app-id timew-month bash -c '          
+    echo "══════════ THIS MONTH ══════════"            
+    timew month                            
+    echo ""                                       
+    read -p "Press Enter to close..."             
+'                                                 
+

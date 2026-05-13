@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# MPD music selector with walker dmenu mode
+# Play now = add to queue and play, without clearing queue
+
+set -e
+
+# Check if mpd is running
+if ! mpc status > /dev/null 2>&1; then
+    echo "Error: MPD is not running or not accessible"
+    exit 1
+fi
+
+# Get song selection using walker in dmenu mode - formatted as "Title - Artist"
+selected_song=$(mpc --format "%title% - %artist%" listall | walker -d -p "Select song:")
+
+if [[ -z "$selected_song" ]]; then
+    echo "No song selected"
+    exit 0
+fi
+
+# Extract the original filename from the selected formatted song
+# We need to find the filename that matches this title and artist
+original_filename=$(mpc --format "%title% - %artist%::%file%" listall | grep -F "$selected_song::" | head -1 | cut -d':' -f3-)
+
+if [[ -z "$original_filename" ]]; then
+    echo "Error: Could not find original file for selected song"
+    exit 1
+fi
+
+# Use walker in dmenu mode to select action
+action=$(echo -e "Play now\nAdd to queue" | walker -d -p "Action for: ${selected_song:0:30}...")
+
+case "$action" in
+    "Play now")
+        echo "Adding to queue and playing: $selected_song"
+        # Add song to queue
+        mpc add "$original_filename"
+        # Get the position of the newly added song (last position)
+        queue_length=$(mpc playlist | wc -l)
+        # Play the newly added song
+        mpc play $queue_length
+        ;;
+    "Add to queue")
+        echo "Adding to queue: $selected_song"
+        mpc add "$original_filename"
+        ;;
+    *)
+        echo "No action selected"
+        ;;
+esac

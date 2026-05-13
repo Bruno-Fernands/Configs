@@ -1,0 +1,12 @@
+#!/bin/bash
+
+TAG="chinese"
+
+if timew get dom.active | grep -q "1"; then
+    OUTPUT=$(timew stop 2>&1)
+    DURATION=$(echo "$OUTPUT" | grep "Total" | awk '{print $NF}')
+    notify-send -i dialog-information "Timewarrior" "Session stopped.\nDuration: $DURATION"
+else
+    timew start "$TAG"
+    notify-send -i media-playback-start "Timewarrior" "Tracking started: $TAG"
+fi
